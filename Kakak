@@ -1,1 +1,161 @@
-fff
+function EnableFling()
+    if FLINGING and not LocalPlayer.Character then return end
+	repeat wait() until LocalPlayer and LocalPlayer.Character and GetRoot(LocalPlayer.Character) and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+	if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect() flyKeyUp:Disconnect() end
+
+    local sc = (debug and debug.setconstant) or setconstant
+    local gc = (debug and debug.getconstants) or getconstants
+    local pop = LocalPlayer.PlayerScripts.PlayerModule.CameraModule.ZoomController.Popper
+    for _, v in pairs(getgc()) do
+        if type(v) == 'function' and getfenv(v).script == pop then
+            for i, v1 in pairs(gc(v)) do
+                if tonumber(v1) == .25 then
+                    sc(v, i, 0)
+                end
+            end
+        end
+    end
+
+    originalHRPCframe = GetRoot(LocalPlayer.Character).CFrame
+    FlyPart = CreateFlyPart()
+    Highlight(FlyPart)
+	
+    workspace.CurrentCamera.CameraSubject = FlyPart
+	local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+	local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+	local SPEED = 0
+
+    LocalPlrDied = LocalPlayer.Character.Humanoid.Died:Connect(function()
+        DisableFling()
+        LocalPlrDied:Disconnect()
+    end) -- DISABLES FLING WHEN WE DIE ~ DOESNT TRIGGER IF WE GET VOIDED IN RARE INSTANCES
+
+	local function FLY()
+		FLYING = true
+        local BG = Instance.new('BodyGyro')
+		local BodyVelocity = Instance.new('BodyVelocity')
+        local oldniggafart = FlyPart.CFrame
+        BG.P = 8000
+		BG.Parent = FlyPart
+		BG.maxTorque = Vector3.new(1300, 1300, 1300)
+		BG.cframe = FlyPart.CFrame
+		BodyVelocity.Parent = FlyPart
+		BodyVelocity.velocity = Vector3.new(0, 0, 0)
+		BodyVelocity.P = 1250 -- what even is a P
+		BodyVelocity.maxForce = Vector3.new(9e9, 9e9, 9e9)
+
+        HeartbeatCon = RunService.Heartbeat:Connect(function(deltaTime) -- HANDLES THE CONTROLS OF OUR getgenv().limbs
+            for i,v in pairs(LocalPlayer.Character:GetChildren()) do
+                if getgenv().limbs[v.Name] then
+                    v.CFrame = FlyPart.CFrame:ToWorldSpace(CFrame.new(getgenv().limbs[v.Name]))
+                    v.CanCollide = false
+                end
+            end
+            
+            GetRoot(LocalPlayer.Character).CFrame = originalHRPCframe
+			HideCharacter(LocalPlayer.Character, true)
+            ReplicatedStorage.Events.__DFfDD:FireServer("-r__r2")
+        end)
+
+        RenderSteppedCon = RunService.RenderStepped:Connect(function(deltaTime) -- HANDLES THE VELOCITY OF OUR getgenv().limbs / render stepped cos idk this shit works more consistant
+            for i,v in pairs(LocalPlayer.Character:GetChildren()) do
+                if getgenv().limbs[v.Name] then
+                    if VelocityMode then
+                        v.Velocity = Vector3.new(math.random(-50000, 50000), 100000, math.random(-50000, 50000))
+                    else
+                        v.Velocity = Vector3.new(0, 5000000, 0)
+                    end
+                end
+            end
+        end)
+
+		task.spawn(function()
+			repeat wait()
+				if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
+					SPEED = 50
+				elseif not (CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0) and SPEED ~= 0 then
+					SPEED = 0
+				end
+				if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
+					BodyVelocity.velocity = ((workspace.CurrentCamera.CoordinateFrame.lookVector * (CONTROL.F + CONTROL.B)) + ((workspace.CurrentCamera.CoordinateFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - workspace.CurrentCamera.CoordinateFrame.p)) * SPEED
+					lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
+				elseif (CONTROL.L + CONTROL.R) == 0 and (CONTROL.F + CONTROL.B) == 0 and (CONTROL.Q + CONTROL.E) == 0 and SPEED ~= 0 then
+					BodyVelocity.velocity = ((workspace.CurrentCamera.CoordinateFrame.lookVector * (lCONTROL.F + lCONTROL.B)) + ((workspace.CurrentCamera.CoordinateFrame * CFrame.new(lCONTROL.L + lCONTROL.R, (lCONTROL.F + lCONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - workspace.CurrentCamera.CoordinateFrame.p)) * SPEED
+				else
+					BodyVelocity.velocity = Vector3.new(0, 0, 0)
+				end
+                if not flingBusy then
+                    BG.cframe = workspace.CurrentCamera.CoordinateFrame
+                else
+                    BG.cframe = oldniggafart
+                end
+			until not FLYING
+			CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+			lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+			SPEED = 0
+			BodyVelocity:Destroy()
+		end)
+	end
+	flyKeyDown = Mouse.KeyDown:Connect(function(KEY)
+        if flingBusy then return end
+		if KEY:lower() == 'w' then
+			CONTROL.F = (iyflyspeed)
+		elseif KEY:lower() == 's' then
+			CONTROL.B = - (iyflyspeed)
+		elseif KEY:lower() == 'a' then
+			CONTROL.L = - (iyflyspeed)
+		elseif KEY:lower() == 'd' then 
+			CONTROL.R = (iyflyspeed)
+		elseif QEfly and KEY:lower() == 'e' then
+			CONTROL.Q = (iyflyspeed)*2
+		elseif QEfly and KEY:lower() == 'q' then
+			CONTROL.E = -(iyflyspeed)*2
+		end
+		pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Track end)
+	end)
+	flyKeyUp = Mouse.KeyUp:Connect(function(KEY)
+		if KEY:lower() == 'w' then
+			CONTROL.F = 0
+		elseif KEY:lower() == 's' then
+			CONTROL.B = 0
+		elseif KEY:lower() == 'a' then
+			CONTROL.L = 0
+		elseif KEY:lower() == 'd' then
+			CONTROL.R = 0
+		elseif KEY:lower() == 'e' then
+			CONTROL.Q = 0
+		elseif KEY:lower() == 'q' then
+			CONTROL.E = 0
+		end
+	end)
+    FLINGING = true
+    REMOTEHOOK = true
+	FLY()
+end
+
+Pred4Val = 1
+function PredictionAlgorithm(Character : Model) -- i dont know what an algorithm is but it sounds cool
+    local Vector;
+
+    local HRP = Character.HumanoidRootPart
+
+    if PREDICTIONMETHOD == 1 then
+        Vector = HRP.Position + (Vector3.new(HRP.Velocity.X, 0, HRP.Velocity.Z) / SmoothOscillation(1, 8, 0.37)) --1.1, 6, 0.45
+    elseif PREDICTIONMETHOD == 2 then -- off dev forum and edited lol
+        local r = 8
+        local rps = math.pi
+
+        local angle = 0
+        angle = (angle + tick() * rps) % (2 * math.pi)
+        Vector = HRP.Position + Vector3.new(math.cos(angle) * r, 0, math.sin(angle) * r);
+    elseif PREDICTIONMETHOD == 3 then
+        Vector = HRP.Position + Vector3.new(0, 5, 0)
+    elseif PREDICTIONMETHOD == 4 then
+        if Pred4Val >= PredMax then
+            Pred4Val = 0
+        end
+        Pred4Val += PredIncrease
+        task.wait(PredWait)
+
+        Vector = HRP.Position + (Vector3.new(HRP.Velocity.X, HRP.Velocity.Y / 1.5, HRP.Velocity.Z) * Pred4Val)
+    end
